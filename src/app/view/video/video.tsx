@@ -1,5 +1,14 @@
 import {cn} from "@/lib/utils";
 import classes from "./video.module.css";
+import {create} from "zustand";
+
+interface VideoStore {
+  videos: string[];
+}
+
+export const useVideos = create<VideoStore>()(() => ({
+  videos: [],
+}));
 
 export function Video() {
   return (

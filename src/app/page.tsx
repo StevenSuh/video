@@ -18,21 +18,21 @@ export default function Home() {
 
       <div className={cn(classes.videoEditorContainer, "pt-5 flex flex-col justify-between")}>
         <div className="flex items-center">
-          <Button className="h-8 px-2 rounded-full" variant="ghost">
-            <InspectionPanel className="h-4 w-4" />
+          <Button className="size-9 rounded-full mr-2" variant="ghost">
+            <InspectionPanel size={20} />
           </Button>
-          <Button className="h-8 px-2 rounded-full" variant="ghost">
-            <Headphones className="h-4 w-4" />
+          <Button className="size-9 rounded-full" variant="ghost">
+            <Headphones size={20} />
           </Button>
-          <Button className="absolute left-1/2 -translate-x-1/2 h-8 px-2 rounded-full" variant="ghost">
-            <Play className="h-4 w-4" />
+          <Button className="absolute left-1/2 -translate-x-1/2 size-9 rounded-full" variant="ghost">
+            <Play size={20} />
           </Button>
           <span className="ml-auto">0:00 / 0:05</span>
         </div>
 
         <div className="flex items-center">
-          <Button className="absolute" variant="secondary" size="icon">
-            <Plus size={24} />
+          <Button className="absolute size-12" variant="secondary" size="icon">
+            <Plus size={32} />
           </Button>
           <div className="flex justify-center mx-auto">
             <div>Video 1</div>
