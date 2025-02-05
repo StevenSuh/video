@@ -1,0 +1,11 @@
+.root {
+  --video-editor-min-height: 256px;
+}
+
+.videoContainer {
+  height: min(75%, calc(100% - var(--video-editor-min-height)));
+}
+
+.videoEditorContainer {
+  min-height: var(--video-editor-min-height);
+}

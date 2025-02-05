@@ -1,0 +1,46 @@
+.root {
+  --color-1: 0 100% 63%;
+  --color-2: 270 100% 63%;
+  --color-3: 210 100% 63%;
+  --color-4: 195 100% 63%;
+  --color-5: 90 100% 63%;
+}
+
+.videoBgContainer {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 10px;
+  width: 80%;
+  z-index: -1;
+}
+
+.videoBg {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  opacity: 0.5;
+
+  animation: rainbow 3s infinite linear;
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--color-1)),
+    hsl(var(--color-5)),
+    hsl(var(--color-3)),
+    hsl(var(--color-4)),
+    hsl(var(--color-2))
+  );
+  background-size: 200%;
+  filter: blur(calc(0.8 * 1rem));
+}
+
+@keyframes rainbow {
+  0% {
+    background-position: 0%;
+  }
+
+  100% {
+    background-position: 200%;
+  }
+}
