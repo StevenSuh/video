@@ -31,7 +31,7 @@ export default function Home() {
         </div>
 
         <div className="flex items-center">
-          <Button className="absolute size-12" variant="secondary" size="icon">
+          <Button className="absolute size-12" variant="default" size="icon">
             <Plus size={32} />
           </Button>
           <div className="flex justify-center mx-auto">
