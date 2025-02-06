@@ -1,0 +1,3 @@
+.videoEditorContainer {
+  min-height: var(--video-editor-min-height);
+}
