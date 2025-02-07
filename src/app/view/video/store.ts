@@ -4,11 +4,13 @@ import {immer} from "zustand/middleware/immer";
 interface VideoDurationLoaded {
   loaded: true;
   duration: number;
+  start: number;
+  end: number;
 }
 
 type VideoDuration = VideoDurationLoaded | {loaded: false};
 
-type Video = {
+export type Video = {
   name: string;
   url: string;
 } & VideoDuration;
@@ -16,7 +18,7 @@ type Video = {
 interface VideoStore {
   videos: Video[];
   addVideos: (videos: VideoStore["videos"]) => void;
-  setVideoDurations: (videoDurationsByUrl: {[url: Video["url"]]: VideoDurationLoaded}) => void;
+  setVideoDurations: (videoDurationsByUrl: {[url: Video["url"]]: VideoDurationLoaded["duration"]}) => void;
 
   currentTime: number;
   playing: boolean;
@@ -36,7 +38,7 @@ export const useVideos = create<VideoStore>()(
           if (!videoDuration) {
             return;
           }
-          Object.assign(video, videoDuration);
+          Object.assign(video, {loaded: true, duration: videoDuration, start: 0, end: videoDuration});
         });
       }),
 

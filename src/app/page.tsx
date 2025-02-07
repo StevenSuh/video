@@ -1,7 +1,7 @@
 import {cn} from "@/lib/utils";
 import classes from "./page.module.css";
 import {ThemeToggle} from "./components/theme/toggle";
-import {Video} from "./view/video/video";
+import {VideoPlayer} from "./view/video/video";
 import {VideoEditor} from "./view/video-editor/video-editor";
 
 export default function Home() {
@@ -12,7 +12,7 @@ export default function Home() {
       </div>
 
       <div className={cn(classes.videoContainer, "flex relative")}>
-        <Video />
+        <VideoPlayer />
       </div>
 
       <VideoEditor />
