@@ -3,16 +3,32 @@
 import {cn} from "@/lib/utils";
 import classes from "./video.module.css";
 import {Upload} from "lucide-react";
-import {useVideos, Video} from "./store";
+import {assertVideoLoaded, useVideos, Video} from "./store";
 import {AddVideoButton} from "./add-video-button";
-import {createRef, RefObject, useCallback, useEffect, useState} from "react";
+import {createRef, RefObject, useCallback, useEffect, useMemo, useState} from "react";
 
 type VideoRefs = {[videoUrl: string]: RefObject<HTMLVideoElement>};
 
 export function VideoPlayer() {
-  const {videos, playing, pause, setVideoDurations} = useVideos();
+  const {currentTime, videos, playing, pause, setVideoDuration} = useVideos();
   const [videoRefs, setVideoRefs] = useState<VideoRefs>({});
 
+  // calculates which video to show
+  const currVideoIdx = useMemo(() => {
+    let accumTime = 0;
+    for (let i = 0; i < videos.length; i++) {
+      const video = videos[i];
+      assertVideoLoaded(video);
+      accumTime += video.end - video.start;
+
+      if (accumTime >= currentTime) {
+        return i;
+      }
+    }
+    return videos.length;
+  }, [currentTime, videos]);
+
+  // mapping video elements to refs map
   useEffect(() => {
     setVideoRefs(currRefs =>
       videos.reduce((accum, v) => {
@@ -22,21 +38,21 @@ export function VideoPlayer() {
     );
   }, [videos]);
 
+  // playing/pausing the correct video at current time
   useEffect(() => {
-    // TODO: figure out how to play videos in a row
-    const video = videoRefs[videos[0]?.url]?.current;
+    const video = videoRefs[videos[currVideoIdx]?.url]?.current;
     if (playing) {
       video?.play();
-    } else if (!video?.paused) {
+    } else {
       video?.pause();
     }
-  }, [playing, videoRefs, videos]);
+  }, [currVideoIdx, playing, videoRefs, videos]);
 
   const createOnVideoLoadedMetadata = useCallback(
     (videoUrl: Video["url"]) => () => {
-      setVideoDurations({[videoUrl]: videoRefs[videoUrl].current.duration});
+      setVideoDuration(videoUrl, videoRefs[videoUrl].current.duration);
     },
-    [setVideoDurations, videoRefs],
+    [setVideoDuration, videoRefs],
   );
 
   return (
@@ -45,7 +61,7 @@ export function VideoPlayer() {
         <>
           {videos.map((v, i) => (
             <video
-              className={cn("h-full max-h-full m-auto bg-black rounded-xl", {hidden: i !== 0})}
+              className={cn("h-full max-h-full m-auto bg-black rounded-xl", {hidden: i !== currVideoIdx})}
               key={`${v.url}${v.loaded ? "#t=8,10" : ""}`}
               ref={videoRefs[v.url]}
               controls={false}

@@ -15,10 +15,18 @@ export type Video = {
   url: string;
 } & VideoDuration;
 
+type VideoLoaded = Video & VideoDurationLoaded;
+
+export function assertVideoLoaded(video: Video): asserts video is VideoLoaded {
+  if (!video.loaded) {
+    throw new Error(`Video (${video.name}) is not loaded`);
+  }
+}
+
 interface VideoStore {
   videos: Video[];
   addVideos: (videos: VideoStore["videos"]) => void;
-  setVideoDurations: (videoDurationsByUrl: {[url: Video["url"]]: VideoDurationLoaded["duration"]}) => void;
+  setVideoDuration: (videoUrl: Video["url"], videoDuration: VideoDurationLoaded["duration"]) => void;
 
   currentTime: number;
   playing: boolean;
@@ -31,15 +39,13 @@ export const useVideos = create<VideoStore>()(
   immer(set => ({
     videos: [],
     addVideos: (videos: VideoStore["videos"]) => set(state => ({videos: state.videos.concat(videos)})),
-    setVideoDurations: videoDurationsByUrl =>
+    setVideoDuration: (videoUrl, videoDuration) =>
       set(state => {
-        state.videos.forEach(video => {
-          const videoDuration = videoDurationsByUrl[video.url];
-          if (!videoDuration) {
-            return;
-          }
-          Object.assign(video, {loaded: true, duration: videoDuration, start: 0, end: videoDuration});
-        });
+        const video = state.videos.find(v => v.url === videoUrl);
+        if (!video) {
+          return;
+        }
+        Object.assign(video, {loaded: true, duration: videoDuration, start: 0, end: videoDuration});
       }),
 
     currentTime: 0,
