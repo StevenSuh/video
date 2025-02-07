@@ -10,7 +10,7 @@ import {createRef, RefObject, useCallback, useEffect, useMemo, useState} from "r
 type VideoRefs = {[videoUrl: string]: RefObject<HTMLVideoElement>};
 
 export function VideoPlayer() {
-  const {currentTime, videos, playing, pause, setVideoDuration} = useVideos();
+  const {currentTime, videos, playing, pause, setCurrentTime, setVideoDuration} = useVideos();
   const [videoRefs, setVideoRefs] = useState<VideoRefs>({});
 
   // calculates which video to show
@@ -18,14 +18,17 @@ export function VideoPlayer() {
     let accumTime = 0;
     for (let i = 0; i < videos.length; i++) {
       const video = videos[i];
-      assertVideoLoaded(video);
-      accumTime += video.end - video.start;
+      // this means video was just added and player is at 0
+      if (!video.loaded) {
+        return i;
+      }
 
-      if (accumTime >= currentTime) {
+      accumTime += video.end - video.start;
+      if (accumTime > currentTime) {
         return i;
       }
     }
-    return videos.length;
+    return videos.length - 1;
   }, [currentTime, videos]);
 
   // mapping video elements to refs map
@@ -55,6 +58,31 @@ export function VideoPlayer() {
     [setVideoDuration, videoRefs],
   );
 
+  const onVideoPause = useCallback(() => {
+    const video = videos[currVideoIdx];
+    const videoEl = videoRefs[video.url].current;
+    assertVideoLoaded(video);
+
+    // current video hasn't reached the end, meaning user explicitly pressed pause
+    if (videoEl?.currentTime !== video.end) {
+      pause();
+    }
+
+    // current video has reached the end of entire project
+    // we don't pause when we should be playing next video
+    if (videoEl?.currentTime === video.end && currVideoIdx === videos.length - 1) {
+      pause();
+    }
+
+    const adjustedVideoCurrentTime =
+      videos.slice(0, currVideoIdx).reduce((accum, v) => {
+        assertVideoLoaded(v);
+        return accum + (v.end - v.start);
+      }, 0) +
+      (videoEl?.currentTime - video.start);
+    setCurrentTime(adjustedVideoCurrentTime);
+  }, [currVideoIdx, pause, setCurrentTime, videoRefs, videos]);
+
   return (
     <div className={cn(classes.root, "h-full w-full")}>
       {videos.length ? (
@@ -62,14 +90,14 @@ export function VideoPlayer() {
           {videos.map((v, i) => (
             <video
               className={cn("h-full max-h-full m-auto bg-black rounded-xl", {hidden: i !== currVideoIdx})}
-              key={`${v.url}${v.loaded ? "#t=8,10" : ""}`}
+              key={`${v.url}${v.loaded ? "#t=8,10" : ""}-${i === currVideoIdx ? "playing" : ""}`}
               ref={videoRefs[v.url]}
               controls={false}
-              onPause={pause}
+              onPause={onVideoPause}
               onLoadedMetadata={createOnVideoLoadedMetadata(v.url)}
             >
               {/* Media Fragment URI - https://stackoverflow.com/a/16992434 */}
-              <source src={`${v.url}${v.loaded ? "#t=8,10" : ""}`} />
+              <source src={`${v.url}${v.loaded ? `#t=${v.start},${v.end}` : ""}`} />
             </video>
           ))}
           <div className={cn(classes.videoBgContainer)}>

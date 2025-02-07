@@ -28,7 +28,9 @@ interface VideoStore {
   addVideos: (videos: VideoStore["videos"]) => void;
   setVideoDuration: (videoUrl: Video["url"], videoDuration: VideoDurationLoaded["duration"]) => void;
 
-  currentTime: number;
+  currentTime: number; // in seconds
+  setCurrentTime: (time: number) => void;
+
   playing: boolean;
   play: () => void;
   pause: () => void;
@@ -45,10 +47,17 @@ export const useVideos = create<VideoStore>()(
         if (!video) {
           return;
         }
-        Object.assign(video, {loaded: true, duration: videoDuration, start: 0, end: videoDuration});
+        Object.assign(video, {
+          loaded: true,
+          duration: videoDuration,
+          start: 0,
+          end: videoDuration,
+        });
       }),
 
     currentTime: 0,
+    setCurrentTime: newTime => set(() => ({currentTime: newTime})),
+
     playing: false,
     play: () => set(() => ({playing: true})),
     pause: () => set(() => ({playing: false})),
