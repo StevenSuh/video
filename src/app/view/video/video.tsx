@@ -1,13 +1,13 @@
 "use client";
 
-import {cn} from "@/lib/utils";
+import {assertValue, cn} from "@/lib/utils";
 import classes from "./video.module.css";
 import {Upload} from "lucide-react";
 import {assertVideoLoaded, useVideos, Video} from "./store";
 import {AddVideoButton} from "./add-video-button";
 import {createRef, RefObject, useCallback, useEffect, useMemo, useState} from "react";
 
-type VideoRefs = {[videoUrl: string]: RefObject<HTMLVideoElement>};
+type VideoRefs = {[videoUrl: string]: RefObject<HTMLVideoElement | null>};
 
 export function VideoPlayer() {
   const {currentTime, videos, playing, pause, setCurrentTime, setVideoDuration} = useVideos();
@@ -30,6 +30,7 @@ export function VideoPlayer() {
     }
     return videos.length - 1;
   }, [currentTime, videos]);
+  console.log("currVideoIdx", currVideoIdx);
 
   // mapping video elements to refs map
   useEffect(() => {
@@ -43,17 +44,45 @@ export function VideoPlayer() {
 
   // playing/pausing the correct video at current time
   useEffect(() => {
-    const video = videoRefs[videos[currVideoIdx]?.url]?.current;
+    const video = videos[currVideoIdx];
+    const videoEl = videoRefs[video?.url]?.current;
     if (playing) {
-      video?.play();
+      // user is clicking play when project has reached the end of all videos.
+      // rewind to the beginning of very first video
+      if (video?.loaded && currVideoIdx === videos.length - 1 && video.end === videoEl?.currentTime) {
+        // edge case not covered by below code due to `currVideoIdx` not updating when
+        // there is only one video in the project
+        if (videos.length === 1) {
+          const firstVideo = videos[0];
+          const firstVideoEl = videoRefs[firstVideo.url].current;
+          assertValue(firstVideoEl);
+          assertVideoLoaded(firstVideo);
+          firstVideoEl.currentTime = firstVideo.start;
+        }
+        setCurrentTime(0);
+        return;
+      }
+
+      const adjustedCurrentTime =
+        currentTime -
+        videos.slice(0, currVideoIdx).reduce((accum, v) => {
+          assertVideoLoaded(v);
+          return accum + (v.end - v.start);
+        }, 0) +
+        (video.loaded ? video.start : 0);
+
+      if (videoEl) {
+        videoEl.currentTime = adjustedCurrentTime;
+      }
+      videoEl?.play();
     } else {
-      video?.pause();
+      videoEl?.pause();
     }
-  }, [currVideoIdx, playing, videoRefs, videos]);
+  }, [currVideoIdx, currentTime, playing, setCurrentTime, videoRefs, videos]);
 
   const createOnVideoLoadedMetadata = useCallback(
     (videoUrl: Video["url"]) => () => {
-      setVideoDuration(videoUrl, videoRefs[videoUrl].current.duration);
+      setVideoDuration(videoUrl, videoRefs[videoUrl].current?.duration ?? 0);
     },
     [setVideoDuration, videoRefs],
   );
@@ -74,12 +103,14 @@ export function VideoPlayer() {
       pause();
     }
 
+    // add all previous video sections + current video's time
     const adjustedVideoCurrentTime =
       videos.slice(0, currVideoIdx).reduce((accum, v) => {
         assertVideoLoaded(v);
         return accum + (v.end - v.start);
       }, 0) +
-      (videoEl?.currentTime - video.start);
+      ((videoEl?.currentTime ?? video.start) - video.start);
+
     setCurrentTime(adjustedVideoCurrentTime);
   }, [currVideoIdx, pause, setCurrentTime, videoRefs, videos]);
 
