@@ -30,7 +30,6 @@ export function VideoPlayer() {
     }
     return videos.length - 1;
   }, [currentTime, videos]);
-  console.log("currVideoIdx", currVideoIdx);
 
   // mapping video elements to refs map
   useEffect(() => {
@@ -50,8 +49,8 @@ export function VideoPlayer() {
       // user is clicking play when project has reached the end of all videos.
       // rewind to the beginning of very first video
       if (video?.loaded && currVideoIdx === videos.length - 1 && video.end === videoEl?.currentTime) {
-        // edge case not covered by below code due to `currVideoIdx` not updating when
-        // there is only one video in the project
+        // edge case not covered when there is only one video in the project
+        // the check above for `currVideoIdx` to videos.length is the reason
         if (videos.length === 1) {
           const firstVideo = videos[0];
           const firstVideoEl = videoRefs[firstVideo.url].current;
