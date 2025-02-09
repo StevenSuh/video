@@ -3,8 +3,8 @@
 }
 
 .cursor {
-  height: calc(100% + 10px);
-  top: -5px;
+  height: calc(100% + 16px);
+  top: -8px;
 }
 
 .videoRangeContainer {

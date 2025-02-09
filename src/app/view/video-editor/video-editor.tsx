@@ -105,7 +105,11 @@ export function VideoEditor() {
       </div>
 
       <div className="relative flex items-center" ref={projectRangeContainerRef}>
-        <AddVideoButton className="absolute size-12 z-10" variant="default" size="icon">
+        <AddVideoButton
+          className="absolute size-12 z-10 shadow-sm border border-border/50"
+          variant="default"
+          size="icon"
+        >
           <Plus size={32} />
         </AddVideoButton>
 
@@ -140,9 +144,9 @@ export function VideoEditor() {
           <div
             className={cn(
               classes.cursor,
-              "absolute w-2 bg-foreground rounded-full",
+              "absolute w-1.5 bg-foreground rounded-full",
               "left-1/2 -translate-x-1/2",
-              "cursor-pointer border border-background",
+              "cursor-pointer",
             )}
           />
         ) : null}
