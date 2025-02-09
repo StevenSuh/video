@@ -23,6 +23,12 @@ export function assertVideoLoaded(video: Video): asserts video is VideoLoaded {
   }
 }
 
+export function getTotalDuration(videos: Video[]): number {
+  return videos.reduce((accum, v) => {
+    return accum + (v.loaded ? v.end - v.start : 0);
+  }, 0);
+}
+
 interface VideoStore {
   videos: Video[];
   addVideos: (videos: VideoStore["videos"]) => void;
@@ -61,6 +67,18 @@ export const useVideos = create<VideoStore>()(
     playing: false,
     play: () => set(() => ({playing: true})),
     pause: () => set(() => ({playing: false})),
-    togglePlay: () => set(state => ({playing: !state.playing})),
+    togglePlay: () =>
+      set(state => {
+        if (!state.videos.length) {
+          return;
+        }
+        // user is clicking play when project has reached the end of all videos.
+        // rewind to the beginning of very first video
+        const totalDuration = getTotalDuration(state.videos);
+        if (!state.playing && state.currentTime >= totalDuration) {
+          return {playing: true, currentTime: 0};
+        }
+        return {playing: !state.playing};
+      }),
   })),
 );

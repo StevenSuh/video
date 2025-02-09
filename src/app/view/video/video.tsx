@@ -1,6 +1,6 @@
 "use client";
 
-import {assertValue, cn} from "@/lib/utils";
+import {cn} from "@/lib/utils";
 import classes from "./video.module.css";
 import {Upload} from "lucide-react";
 import {assertVideoLoaded, useVideos, Video} from "./store";
@@ -45,30 +45,19 @@ export function VideoPlayer() {
   useEffect(() => {
     const video = videos[currVideoIdx];
     const videoEl = videoRefs[video?.url]?.current;
-    if (playing) {
-      // user is clicking play when project has reached the end of all videos.
-      // rewind to the beginning of very first video
-      if (video?.loaded && currVideoIdx === videos.length - 1 && video.end === videoEl?.currentTime) {
-        // edge case not covered when there is only one video in the project
-        // the check above for `currVideoIdx` to videos.length is the reason
-        if (videos.length === 1) {
-          const firstVideo = videos[0];
-          const firstVideoEl = videoRefs[firstVideo.url].current;
-          assertValue(firstVideoEl);
-          assertVideoLoaded(firstVideo);
-          firstVideoEl.currentTime = firstVideo.start;
-        }
-        setCurrentTime(0);
-        return;
-      }
 
+    if (!videos.length) {
+      return;
+    }
+
+    if (playing) {
       const adjustedCurrentTime =
         currentTime -
         videos.slice(0, currVideoIdx).reduce((accum, v) => {
           assertVideoLoaded(v);
           return accum + (v.end - v.start);
         }, 0) +
-        (video.loaded ? video.start : 0);
+        (video?.loaded ? video.start : 0);
 
       if (videoEl) {
         videoEl.currentTime = adjustedCurrentTime;
@@ -77,7 +66,7 @@ export function VideoPlayer() {
     } else {
       videoEl?.pause();
     }
-  }, [currVideoIdx, currentTime, playing, setCurrentTime, videoRefs, videos]);
+  }, [currVideoIdx, currentTime, playing, videoRefs, videos]);
 
   const createOnVideoLoadedMetadata = useCallback(
     (videoUrl: Video["url"]) => () => {
@@ -90,15 +79,16 @@ export function VideoPlayer() {
     const video = videos[currVideoIdx];
     const videoEl = videoRefs[video.url].current;
     assertVideoLoaded(video);
+    const videoCurrentTime = videoEl?.currentTime ?? 0;
 
     // current video hasn't reached the end, meaning user explicitly pressed pause
-    if (videoEl?.currentTime !== video.end) {
+    if (videoCurrentTime < video.end) {
       pause();
     }
 
     // current video has reached the end of entire project
     // we don't pause when we should be playing next video
-    if (videoEl?.currentTime === video.end && currVideoIdx === videos.length - 1) {
+    if (videoCurrentTime >= video.end && currVideoIdx === videos.length - 1) {
       pause();
     }
 
@@ -108,7 +98,7 @@ export function VideoPlayer() {
         assertVideoLoaded(v);
         return accum + (v.end - v.start);
       }, 0) +
-      ((videoEl?.currentTime ?? video.start) - video.start);
+      (Math.min(videoEl?.currentTime ?? video.start, video.end) - video.start);
 
     setCurrentTime(adjustedVideoCurrentTime);
   }, [currVideoIdx, pause, setCurrentTime, videoRefs, videos]);
