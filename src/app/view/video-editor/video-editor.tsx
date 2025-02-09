@@ -109,9 +109,9 @@ export function VideoEditor() {
           <Plus size={32} />
         </AddVideoButton>
 
-        <div className="relative w-full flex justify-center gap-1 overflow-hidden">
+        <div className="relative w-full flex justify-center overflow-hidden">
           <div
-            className={cn(classes.videoRangeContainer, "relative flex gap-1")}
+            className={cn(classes.videoRangeContainer, "relative flex")}
             ref={videoRangeContainerRef}
             style={
               {
@@ -124,9 +124,9 @@ export function VideoEditor() {
           >
             {videos.map(v => {
               const currentVideoRatio = !totalDuration ? 0 : (v.loaded ? v.end - v.start : 0) / totalDuration;
-              const width = zoomRangeRatio * currentVideoRatio * projectRangeWidth;
+              const width = zoomRangeRatio * currentVideoRatio * projectRangeWidth - 4; // margin
               return (
-                <div className="rounded-md overflow-hidden" key={v.url} style={{width}}>
+                <div className="rounded-md overflow-hidden mx-0.5" key={v.url} style={{width}}>
                   <video className="h-16 w-full object-cover" preload="metadata" controls={false}>
                     <source src={`${v.url}#t=0`} />
                   </video>
