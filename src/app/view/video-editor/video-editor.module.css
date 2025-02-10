@@ -2,11 +2,6 @@
   min-height: var(--video-editor-min-height);
 }
 
-.cursor {
-  height: calc(100% + 16px);
-  top: -8px;
-}
-
 .videoRangeContainer {
   --start-range: 0px;
   --end-range: 0px;

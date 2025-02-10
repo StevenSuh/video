@@ -6,10 +6,18 @@ import {Button} from "@/components/ui/button";
 import {Headphones, InspectionPanel, Pause, Play, Plus} from "lucide-react";
 import {getTotalDuration, useVideos} from "../video/store";
 import {AddVideoButton} from "../video/add-video-button";
-import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {
+  CSSProperties,
+  PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 export function VideoEditor() {
-  const {currentTime, videos, playing, togglePlay} = useVideos();
+  const {currentTime, videos, playing, togglePlay, pause, addCurrentTime} = useVideos();
   const PlayPause = playing ? Pause : Play;
 
   const totalDuration = useMemo(() => getTotalDuration(videos), [videos]);
@@ -48,22 +56,34 @@ export function VideoEditor() {
     }
     setZoomRange(Math.min(60 * 10, Math.max(10, totalDuration)));
   }, [totalDuration, videos.length]);
-  const zoomRangeRatio = !zoomRange ? 0 : totalDuration / zoomRange;
 
-  const getStartRange = useCallback(() => {
-    const currentTimeRatio = !totalDuration ? 0 : currentTime / totalDuration;
-    return zoomRangeRatio * currentTimeRatio * projectRangeWidth - (zoomRangeRatio * projectRangeWidth) / 2;
-  }, [currentTime, projectRangeWidth, totalDuration, zoomRangeRatio]);
+  const zoomRangeToUse = !zoomRange ? 1 : zoomRange;
 
-  const [startRange, setStartRange] = useState(getStartRange);
+  const getStartRange = useCallback(
+    (time: number) => {
+      return (projectRangeWidth / zoomRangeToUse) * time - projectRangeWidth / 2;
+    },
+    [projectRangeWidth, zoomRangeToUse],
+  );
+
+  const [startRange, setStartRange] = useState(getStartRange(currentTime));
   // update starting point whenever new videos are added
   useEffect(() => {
-    setStartRange(getStartRange());
+    setStartRange(getStartRange(currentTime));
     // can't have `currentTime` update + invoke this as it will make the animation janky
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalDuration]);
+  }, [getStartRange, totalDuration]);
 
-  const endRange = useMemo(() => (zoomRangeRatio * projectRangeWidth) / 2, [projectRangeWidth, zoomRangeRatio]);
+  /**
+   * `projectRangeWidth` represents width of range in px
+   * `zoomRangeToUse` represents how many seconds `projectRangeWidth` represents
+   *   - `projectRangeWidth / zoomRangeToUse` = px per second
+   * we subtract `projectRangeWidth / 2` to consider the range cursor is in the middle
+   */
+  const endRange = useMemo(
+    () => (projectRangeWidth / zoomRangeToUse) * totalDuration - projectRangeWidth / 2,
+    [projectRangeWidth, totalDuration, zoomRangeToUse],
+  );
 
   const [rangeAnimationDuration, setRangeAnimationDuration] = useState(totalDuration);
   useEffect(() => {
@@ -87,8 +107,51 @@ export function VideoEditor() {
     videoRangeContainerRef.current.style.animationPlayState = "running";
   }, [currentTime, playing, rangeAnimationDuration]);
 
+  const [dragging, setDragging] = useState(false);
+  const [initX, setInitX] = useState(0);
+
+  const onPointerUp = useCallback(() => {
+    setDragging(false);
+  }, []);
+
+  const onPointerMove = useCallback(
+    (event: PointerEvent) => {
+      if (!dragging) {
+        return;
+      }
+      const currX = event.clientX;
+      const diff = -(currX - initX);
+      if (Math.abs(diff) < 10) {
+        return;
+      }
+
+      pause();
+      const newTime = (diff / projectRangeWidth) * zoomRangeToUse;
+      addCurrentTime(newTime);
+      setStartRange(getStartRange(newTime));
+    },
+    [addCurrentTime, dragging, getStartRange, initX, pause, projectRangeWidth, zoomRangeToUse],
+  );
+
+  useEffect(() => {
+    if (!dragging) {
+      return;
+    }
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    return () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [dragging, onPointerMove, onPointerUp]);
+
+  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    setDragging(true);
+    setInitX(event.clientX);
+  }, []);
+
   return (
-    <div className={cn(classes.videoEditorContainer, "pt-5 flex flex-col justify-between")}>
+    <div className={cn(classes.videoEditorContainer, "pt-5 flex flex-col justify-center")}>
       <div className="flex items-center">
         <Button className="size-9 rounded-full mr-2" variant="ghost">
           <InspectionPanel size={20} />
@@ -104,52 +167,56 @@ export function VideoEditor() {
         </span>
       </div>
 
-      <div className="relative flex items-center" ref={projectRangeContainerRef}>
+      <div className="relative flex flex-1" ref={projectRangeContainerRef}>
         <AddVideoButton
-          className="absolute size-12 z-10 shadow-sm border border-border/50"
+          className="absolute size-12 z-10 shadow-sm border border-border/50 self-center"
           variant="default"
           size="icon"
         >
           <Plus size={32} />
         </AddVideoButton>
 
-        <div className="relative w-full flex justify-center overflow-hidden">
-          <div
-            className={cn(classes.videoRangeContainer, "relative flex")}
-            ref={videoRangeContainerRef}
-            style={
-              {
-                animationDuration: `${rangeAnimationDuration}s`,
-                animationPlayState: playing ? "running" : "paused",
-                "--start-range": `${-startRange}px`,
-                "--end-range": `${-endRange}px`,
-              } as CSSProperties
-            }
-          >
-            {videos.map(v => {
-              const currentVideoRatio = !totalDuration ? 0 : (v.loaded ? v.end - v.start : 0) / totalDuration;
-              const width = zoomRangeRatio * currentVideoRatio * projectRangeWidth - 4; // margin
-              return (
-                <div className="rounded-md overflow-hidden mx-0.5" key={v.url} style={{width}}>
-                  <video className="h-16 w-full object-cover" preload="metadata" controls={false}>
-                    <source src={`${v.url}#t=0`} />
-                  </video>
-                </div>
-              );
-            })}
+        <div
+          className="relative flex items-center flex-1 border border-border overflow-hidden"
+          onPointerDown={onPointerDown}
+        >
+          <div className="relative w-full flex overflow-hidden">
+            <div
+              className={cn(classes.videoRangeContainer, "relative flex")}
+              ref={videoRangeContainerRef}
+              style={
+                {
+                  animationDuration: `${rangeAnimationDuration}s`,
+                  animationPlayState: playing ? "running" : "paused",
+                  "--start-range": `${-startRange}px`,
+                  "--end-range": `${-endRange}px`,
+                } as CSSProperties
+              }
+            >
+              {videos.map(v => {
+                const currentVideoDuration = v.loaded ? v.end - v.start : 0;
+                const width = (projectRangeWidth / zoomRangeToUse) * currentVideoDuration - 6; // margin
+                return (
+                  <div className="rounded-md overflow-hidden mx-[3px] cursor-pointer" key={v.url} style={{width}}>
+                    <video className="h-16 w-full object-cover" preload="metadata" controls={false}>
+                      <source src={`${v.url}#t=0`} />
+                    </video>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {videos.length ? (
-          <div
-            className={cn(
-              classes.cursor,
-              "absolute w-1.5 bg-foreground rounded-full",
-              "left-1/2 -translate-x-1/2",
-              "cursor-pointer",
-            )}
-          />
-        ) : null}
+          {videos.length ? (
+            <div
+              className={cn(
+                "absolute w-1.5 bg-foreground rounded-full h-20",
+                "left-1/2 -translate-x-1/2",
+                "cursor-pointer",
+              )}
+            />
+          ) : null}
+        </div>
       </div>
 
       <div className="flex justify-between">

@@ -36,6 +36,7 @@ interface VideoStore {
 
   currentTime: number; // in seconds
   setCurrentTime: (time: number) => void;
+  addCurrentTime: (time: number) => void;
 
   playing: boolean;
   play: () => void;
@@ -63,6 +64,16 @@ export const useVideos = create<VideoStore>()(
 
     currentTime: 0,
     setCurrentTime: newTime => set(() => ({currentTime: newTime})),
+    addCurrentTime: addTime =>
+      set(state => ({
+        currentTime: Math.max(
+          Math.min(
+            state.currentTime + addTime,
+            getTotalDuration(state.videos), // should not exceed max
+          ),
+          0, // should not go below 0
+        ),
+      })),
 
     playing: false,
     play: () => set(() => ({playing: true})),
