@@ -56,7 +56,7 @@ export function VideoPlayer() {
         videos.slice(0, currVideoIdx).reduce((accum, v) => {
           assertVideoLoaded(v);
           return accum + (v.end - v.start);
-        }, 0) +
+        }, 0) -
         (video?.loaded ? video.start : 0);
 
       if (videoEl) {

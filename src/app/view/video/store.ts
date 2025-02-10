@@ -65,15 +65,19 @@ export const useVideos = create<VideoStore>()(
     currentTime: 0,
     setCurrentTime: newTime => set(() => ({currentTime: newTime})),
     addCurrentTime: addTime =>
-      set(state => ({
-        currentTime: Math.max(
+      set(state => {
+        const newTime = Math.max(
           Math.min(
             state.currentTime + addTime,
             getTotalDuration(state.videos), // should not exceed max
           ),
           0, // should not go below 0
-        ),
-      })),
+        );
+        if (newTime === state.currentTime) {
+          return;
+        }
+        return {currentTime: newTime};
+      }),
 
     playing: false,
     play: () => set(() => ({playing: true})),

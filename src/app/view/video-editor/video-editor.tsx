@@ -39,8 +39,13 @@ export function VideoEditor() {
     if (!playing) {
       return;
     }
+    let initial = true;
     return setAccurateIntervalInSecs(
-      () => setCurrentDuration(prevDuration => prevDuration + 1),
+      () => {
+        const timeDiff = initial ? 1 - (currentTime % 1) : 1;
+        setCurrentDuration(prev => prev + timeDiff);
+        initial = false;
+      },
       1,
       1 - (currentTime % 1), // less than 1 sec in case current time is a decimal
     );
@@ -90,10 +95,8 @@ export function VideoEditor() {
     setRangeAnimationDuration(totalDuration);
   }, [totalDuration]);
 
-  const videoRangeContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // reset animation only when replaying the project
-    if (!playing || !videoRangeContainerRef.current || currentTime !== 0) {
+  const retriggerAnimation = useCallback(() => {
+    if (!videoRangeContainerRef.current) {
       return;
     }
     // trick to re-trigger animation by causing reflow
@@ -104,33 +107,56 @@ export function VideoEditor() {
 
     // need to resupply these fields when causing reflow
     videoRangeContainerRef.current.style.animationDuration = `${rangeAnimationDuration}s`;
-    videoRangeContainerRef.current.style.animationPlayState = "running";
-  }, [currentTime, playing, rangeAnimationDuration]);
+    videoRangeContainerRef.current.style.animationPlayState = playing ? "running" : "paused";
+  }, [playing, rangeAnimationDuration]);
+
+  const videoRangeContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // reset animation only when replaying the project
+    if (!playing || currentTime !== 0) {
+      return;
+    }
+    setRangeAnimationDuration(totalDuration);
+    setStartRange(getStartRange(currentTime));
+    retriggerAnimation();
+  }, [currentTime, getStartRange, playing, retriggerAnimation, totalDuration]);
 
   const [dragging, setDragging] = useState(false);
   const [initX, setInitX] = useState(0);
 
+  useEffect(() => {
+    if (!dragging) {
+      return;
+    }
+    setStartRange(getStartRange(currentTime));
+  }, [currentTime, dragging, getStartRange]);
+
   const onPointerUp = useCallback(() => {
     setDragging(false);
-  }, []);
+    setRangeAnimationDuration(totalDuration - currentTime);
+  }, [currentTime, totalDuration]);
 
   const onPointerMove = useCallback(
     (event: PointerEvent) => {
       if (!dragging) {
         return;
       }
-      const currX = event.clientX;
-      const diff = -(currX - initX);
-      if (Math.abs(diff) < 10) {
+      if (event.pressure === 0) {
+        onPointerUp();
         return;
       }
 
-      pause();
+      const currX = event.clientX;
+      const diff = -(currX - initX);
+      if (Math.abs(diff) < 1) {
+        return;
+      }
+
       const newTime = (diff / projectRangeWidth) * zoomRangeToUse;
       addCurrentTime(newTime);
-      setStartRange(getStartRange(newTime));
+      setInitX(event.clientX);
     },
-    [addCurrentTime, dragging, getStartRange, initX, pause, projectRangeWidth, zoomRangeToUse],
+    [addCurrentTime, dragging, initX, onPointerUp, projectRangeWidth, zoomRangeToUse],
   );
 
   useEffect(() => {
@@ -145,10 +171,16 @@ export function VideoEditor() {
     };
   }, [dragging, onPointerMove, onPointerUp]);
 
-  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    setDragging(true);
-    setInitX(event.clientX);
-  }, []);
+  const onPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      setDragging(true);
+      setInitX(event.clientX);
+
+      pause();
+      retriggerAnimation();
+    },
+    [pause, retriggerAnimation],
+  );
 
   return (
     <div className={cn(classes.videoEditorContainer, "pt-5 flex flex-col justify-center")}>
@@ -176,10 +208,7 @@ export function VideoEditor() {
           <Plus size={32} />
         </AddVideoButton>
 
-        <div
-          className="relative flex items-center flex-1 border border-border overflow-hidden"
-          onPointerDown={onPointerDown}
-        >
+        <div className="relative flex items-center flex-1 overflow-hidden" onPointerDown={onPointerDown}>
           <div className="relative w-full flex overflow-hidden">
             <div
               className={cn(classes.videoRangeContainer, "relative flex")}
