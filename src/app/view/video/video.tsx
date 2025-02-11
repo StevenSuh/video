@@ -41,32 +41,41 @@ export function VideoPlayer() {
     );
   }, [videos]);
 
-  // playing/pausing the correct video at current time
+  // playing/pausing
   useEffect(() => {
     const video = videos[currVideoIdx];
     const videoEl = videoRefs[video?.url]?.current;
 
-    if (!videos.length) {
+    if (!videos.length || !video || !videoEl) {
       return;
     }
 
     if (playing) {
-      const adjustedCurrentTime =
-        currentTime -
-        videos.slice(0, currVideoIdx).reduce((accum, v) => {
-          assertVideoLoaded(v);
-          return accum + (v.end - v.start);
-        }, 0) -
-        (video?.loaded ? video.start : 0);
-
-      if (videoEl) {
-        videoEl.currentTime = adjustedCurrentTime;
-      }
-      videoEl?.play();
+      videoEl.play();
     } else {
-      videoEl?.pause();
+      videoEl.pause();
     }
-  }, [currVideoIdx, currentTime, playing, videoRefs, videos]);
+  }, [currVideoIdx, playing, videoRefs, videos]);
+
+  // change current video's time when `currentTime` changes
+  useEffect(() => {
+    const video = videos[currVideoIdx];
+    const videoEl = videoRefs[video?.url]?.current;
+
+    if (!videos.length || !video || !videoEl) {
+      return;
+    }
+
+    const adjustedCurrentTime =
+      currentTime -
+      videos.slice(0, currVideoIdx).reduce((accum, v) => {
+        assertVideoLoaded(v);
+        return accum + (v.end - v.start);
+      }, 0) -
+      (video.loaded ? video.start : 0);
+
+    videoEl.currentTime = adjustedCurrentTime;
+  }, [currVideoIdx, currentTime, videoRefs, videos]);
 
   const createOnVideoLoadedMetadata = useCallback(
     (videoUrl: Video["url"]) => () => {
