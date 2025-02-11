@@ -1,24 +1,3 @@
 .videoEditorContainer {
   min-height: var(--video-editor-min-height);
 }
-
-.videoRangeContainer {
-  --start-range: 0px;
-  --end-range: 0px;
-
-  animation-name: rangePlaying;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-
-  transform: translateX(var(--start-range));
-}
-
-@keyframes rangePlaying {
-  0% {
-    transform: translateX(var(--start-range));
-  }
-
-  100% {
-    transform: translateX(var(--end-range));
-  }
-}
