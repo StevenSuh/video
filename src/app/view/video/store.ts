@@ -32,6 +32,7 @@ export function getTotalDuration(videos: Video[]): number {
 interface VideoStore {
   videos: Video[];
   addVideos: (videos: VideoStore["videos"]) => void;
+  clearVideos: () => void;
   setVideoDuration: (videoUrl: Video["url"], videoDuration: VideoDurationLoaded["duration"]) => void;
 
   currentTime: number; // in seconds
@@ -48,6 +49,7 @@ export const useVideos = create<VideoStore>()(
   immer(set => ({
     videos: [],
     addVideos: (videos: VideoStore["videos"]) => set(state => ({videos: state.videos.concat(videos)})),
+    clearVideos: () => set(() => ({videos: []})),
     setVideoDuration: (videoUrl, videoDuration) =>
       set(state => {
         const video = state.videos.find(v => v.url === videoUrl);

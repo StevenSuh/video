@@ -9,7 +9,7 @@ import {useEffect, useMemo, useState} from "react";
 import {VideoRange} from "./video-range/video-range";
 
 export function VideoEditor() {
-  const {currentTime, videos, playing, togglePlay} = useVideos();
+  const {currentTime, videos, playing, togglePlay, clearVideos} = useVideos();
   const PlayPause = playing ? Pause : Play;
 
   const totalDuration = useMemo(() => getTotalDuration(videos), [videos]);
@@ -63,7 +63,9 @@ export function VideoEditor() {
       <VideoRange />
 
       <div className="flex justify-between">
-        <Button variant="ghost">Cancel</Button>
+        <Button variant="ghost" onClick={clearVideos}>
+          Cancel
+        </Button>
         <Button variant="default">Save</Button>
       </div>
     </div>
