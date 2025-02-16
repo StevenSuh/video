@@ -2,37 +2,53 @@
 
 import {FFmpeg} from "@ffmpeg/ffmpeg";
 import {toBlobURL} from "@ffmpeg/util";
-import {ReactNode, useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect} from "react";
 import {create} from "zustand";
+import {immer} from "zustand/middleware/immer";
 
 interface FfmpegStore {
-  ffmpeg: FFmpeg;
+  ffmpeg: FFmpeg | null;
+  setFfmpeg: (ffmpeg: FFmpeg) => void;
 }
 
-export const useFfmpeg = create<FfmpegStore>()(() => ({
-  ffmpeg: new FFmpeg(),
-}));
+export const useFfmpeg = create<FfmpegStore>()(
+  immer(set => ({
+    ffmpeg: null,
+    setFfmpeg: ffmpeg => set(() => ({ffmpeg})),
+  })),
+);
 
-export default function FfmpegLoader({children}: {children: ReactNode}) {
-  const [loaded, setLoaded] = useState(false);
-  const ffmpeg = useFfmpeg(state => state.ffmpeg);
+export function assertFfmpegLoaded(ffmpeg: FfmpegStore["ffmpeg"]): asserts ffmpeg is FFmpeg {
+  if (!ffmpeg?.loaded) {
+    throw new Error("Ffmpeg is not loaded");
+  }
+}
+
+export default function FfmpegLoader({enableMultiThreading}: {enableMultiThreading?: boolean}) {
+  const {setFfmpeg} = useFfmpeg();
 
   const load = useCallback(async () => {
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
+    const ffmpeg = new FFmpeg();
+    ffmpeg.on("log", ({message}) => {
+      console.log(message);
+    });
+
+    const baseURL = enableMultiThreading
+      ? "https://unpkg.com/@ffmpeg/core-mt@0.12.9/dist/umd"
+      : "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      workerURL: enableMultiThreading
+        ? await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, "text/javascript")
+        : undefined,
     });
-    setLoaded(true);
-  }, [ffmpeg]);
+    setFfmpeg(ffmpeg);
+  }, [enableMultiThreading, setFfmpeg]);
 
   useEffect(() => {
-    // load();
+    load();
   }, [load]);
 
-  if (!loaded) {
-    return <>{children}</>;
-  }
-
-  return <>{children}</>;
+  return null;
 }

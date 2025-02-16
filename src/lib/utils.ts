@@ -32,10 +32,10 @@ function addZeroIfNeeded(n: number): string {
   return str.length < 2 ? `0${str}` : str;
 }
 
-export function formatTimestamp(time: number, baseTime?: string): string {
+export function formatTimestamp(time: number, baseTime?: string, trim = true): string {
   const hours = Math.floor(time / (60 * 60));
   const minutes = Math.floor((time % (60 * 60)) / 60);
-  const seconds = Math.floor(time % 60);
+  const seconds = trim ? Math.floor(time % 60) : time % 60;
 
   const baseTimeHasHours = (baseTime ?? "").length > 5;
   return `${hours || baseTimeHasHours ? `${addZeroIfNeeded(hours)}:` : ""}${addZeroIfNeeded(minutes)}:${addZeroIfNeeded(

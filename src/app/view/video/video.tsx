@@ -10,7 +10,7 @@ import {createRef, RefObject, useCallback, useEffect, useMemo, useState} from "r
 type VideoRefs = {[videoUrl: string]: RefObject<HTMLVideoElement | null>};
 
 export function VideoPlayer() {
-  const {currentTime, videos, playing, pause, setCurrentTime, setVideoDuration} = useVideos();
+  const {currentTime, videos, playing, pause, setCurrentTime, setVideoLoaded} = useVideos();
   const [videoRefs, setVideoRefs] = useState<VideoRefs>({});
 
   // calculates which video to show
@@ -79,9 +79,14 @@ export function VideoPlayer() {
 
   const createOnVideoLoadedMetadata = useCallback(
     (videoUrl: Video["url"]) => () => {
-      setVideoDuration(videoUrl, videoRefs[videoUrl].current?.duration ?? 0);
+      const video = videoRefs[videoUrl].current!;
+      setVideoLoaded(videoUrl, {
+        duration: video.duration,
+        actualHeight: video.videoHeight,
+        actualWidth: video.videoWidth,
+      });
     },
-    [setVideoDuration, videoRefs],
+    [setVideoLoaded, videoRefs],
   );
 
   const onVideoPause = useCallback(() => {

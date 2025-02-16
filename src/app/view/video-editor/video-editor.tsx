@@ -3,12 +3,18 @@
 import {cn, formatTimestamp, setAccurateIntervalInSecs} from "@/lib/utils";
 import classes from "./video-editor.module.css";
 import {Button} from "@/components/ui/button";
-import {Headphones, InspectionPanel, Pause, Play} from "lucide-react";
-import {getTotalDuration, useVideos} from "../video/store";
-import {useEffect, useMemo, useState} from "react";
+import {Headphones, InspectionPanel, LoaderCircle, Pause, Play} from "lucide-react";
+import {assertVideoLoaded, getTotalDuration, useVideos} from "../video/store";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {VideoRange} from "./video-range/video-range";
+import {useFfmpeg} from "@/app/components/ffmpeg/ffmpeg";
+import {fetchFile} from "@ffmpeg/util";
 
 export function VideoEditor() {
+  const {ffmpeg} = useFfmpeg();
+  const ffmpegLoaded = ffmpeg?.loaded;
+  const [processing, setProcessing] = useState(false);
+
   const {currentTime, videos, playing, togglePlay, clearVideos} = useVideos();
   const PlayPause = playing ? Pause : Play;
 
@@ -43,6 +49,96 @@ export function VideoEditor() {
     );
   }, [currentTime, playing]);
 
+  const onSaveVideos = useCallback(async () => {
+    if (!ffmpegLoaded || !videos.length) {
+      return;
+    }
+    const inputs: string[] = [];
+    // https://github.com/ffmpegwasm/ffmpeg.wasm/issues/530#issuecomment-2191708567
+    const threads = ["-threads", "4"];
+
+    // chatgpt this shit
+    const inputPresets = [
+      ...["-c:v", "libx264"],
+      ...["-crf", "23"],
+      ...["-preset", "veryfast"],
+      ...["-c:a", "aac"],
+      ...["-f", "mpegts"],
+      ...threads,
+    ];
+    const outputPresets = [...["-c", "copy"], ...["-muxdelay", "0"], ...["-muxpreload", "0"], ...threads];
+
+    // TODO: add resolution selects
+    const width = 1080;
+    const height = 1920;
+
+    const now = Date.now();
+    setProcessing(true);
+
+    try {
+      await ffmpeg.deleteFile("output.mp4");
+    } catch {}
+
+    await Promise.all(
+      videos.map(async (video, i) => {
+        assertVideoLoaded(video);
+        const fileName = `input-${i}`;
+        await ffmpeg.writeFile(fileName, await fetchFile(video.url));
+
+        // chatgpt this shit
+        await ffmpeg.exec([
+          ...["-ss", `${video.start}`],
+          ...["-to", `${video.end}`],
+          ...["-i", fileName],
+          ...[
+            "-vf",
+            [
+              `scale=${width}:${height}:force_original_aspect_ratio=1`,
+              `pad=${width}:${height}:-1:-1:black`,
+              "fps=30",
+            ].join(","),
+          ],
+          ...inputPresets,
+          ...["-ar", "48000"],
+          fileName + ".ts",
+        ]);
+        await ffmpeg.deleteFile(fileName);
+      }),
+    );
+
+    await ffmpeg.writeFile("concat.txt", videos.map((_, i) => `file input-${i}.ts`).join("\n"));
+    inputs.push("-f", "concat", "-safe", "0", "-i", "concat.txt");
+
+    const outputName = "output.mp4";
+    inputs.push(...outputPresets);
+    inputs.push(outputName);
+
+    await ffmpeg.exec(inputs);
+
+    // cleanup
+    for (let i = 0; i < videos.length; i++) {
+      await ffmpeg.deleteFile(`input-${i}.ts`);
+    }
+    await ffmpeg.deleteFile("concat.txt");
+
+    const later = Date.now();
+    console.log(inputs);
+    console.log(`Took ${(later - now) / 1000} seconds`);
+    setProcessing(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (await ffmpeg.readFile(outputName)) as any;
+
+    const link = document.createElement("a");
+    link.className = "hidden";
+    link.href = URL.createObjectURL(new Blob([data.buffer], {type: "video/mp4"}));
+    link.download = `output-${Date.now()}.mp4`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [ffmpeg, ffmpegLoaded, videos]);
+
   return (
     <div className={cn(classes.videoEditorContainer, "pt-5 flex flex-col justify-center")}>
       <div className="flex items-center">
@@ -66,7 +162,16 @@ export function VideoEditor() {
         <Button variant="ghost" onClick={clearVideos}>
           Cancel
         </Button>
-        <Button variant="default">Save</Button>
+        <Button
+          disabled={!ffmpegLoaded || processing}
+          variant="default"
+          onClick={ffmpegLoaded ? onSaveVideos : undefined}
+        >
+          <span className={cn({"text-transparent": !ffmpegLoaded || processing})}>Save</span>
+          <span className={cn("absolute animate-spin", {hidden: ffmpegLoaded && !processing})}>
+            <LoaderCircle size={20} />
+          </span>
+        </Button>
       </div>
     </div>
   );

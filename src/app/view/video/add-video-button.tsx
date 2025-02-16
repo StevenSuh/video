@@ -17,7 +17,7 @@ export function AddVideoButton({asChild, ...props}: ButtonProps) {
       if (!videos.length) {
         return;
       }
-      addVideos(videos.map(v => ({name: v.name, url: URL.createObjectURL(v), loaded: false})));
+      addVideos(videos.map(v => ({name: v.name, url: URL.createObjectURL(v), size: v.size, loaded: false})));
     },
     [addVideos],
   );

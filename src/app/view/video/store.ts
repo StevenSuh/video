@@ -1,18 +1,24 @@
 import {create} from "zustand";
 import {immer} from "zustand/middleware/immer";
 
-interface VideoDurationLoaded {
-  loaded: true;
+interface VideoDurationLoadedInput {
   duration: number;
+  actualWidth: number;
+  actualHeight: number;
+}
+
+type VideoDurationLoaded = VideoDurationLoadedInput & {
+  loaded: true;
   start: number;
   end: number;
-}
+};
 
 type VideoDuration = VideoDurationLoaded | {loaded: false};
 
 export type Video = {
   name: string;
   url: string;
+  size: number;
 } & VideoDuration;
 
 type VideoLoaded = Video & VideoDurationLoaded;
@@ -33,7 +39,7 @@ interface VideoStore {
   videos: Video[];
   addVideos: (videos: VideoStore["videos"]) => void;
   clearVideos: () => void;
-  setVideoDuration: (videoUrl: Video["url"], videoDuration: VideoDurationLoaded["duration"]) => void;
+  setVideoLoaded: (videoUrl: Video["url"], videoData: VideoDurationLoadedInput) => void;
 
   currentTime: number; // in seconds
   setCurrentTime: (time: number) => void;
@@ -49,18 +55,18 @@ export const useVideos = create<VideoStore>()(
   immer(set => ({
     videos: [],
     addVideos: (videos: VideoStore["videos"]) => set(state => ({videos: state.videos.concat(videos)})),
-    clearVideos: () => set(() => ({videos: []})),
-    setVideoDuration: (videoUrl, videoDuration) =>
+    clearVideos: () => set(() => ({videos: [], currentTime: 0, playing: false})),
+    setVideoLoaded: (videoUrl, videoData) =>
       set(state => {
         const video = state.videos.find(v => v.url === videoUrl);
         if (!video) {
           return;
         }
         Object.assign(video, {
+          ...videoData,
           loaded: true,
-          duration: videoDuration,
           start: 0,
-          end: videoDuration,
+          end: videoData.duration,
         });
       }),
 
