@@ -24,14 +24,22 @@ export function assertFfmpegLoaded(ffmpeg: FfmpegStore["ffmpeg"]): asserts ffmpe
   }
 }
 
-export default function FfmpegLoader({enableMultiThreading}: {enableMultiThreading?: boolean}) {
+export default function FfmpegLoader({
+  enableLog,
+  enableMultiThreading,
+}: {
+  enableLog?: boolean;
+  enableMultiThreading?: boolean;
+}) {
   const {setFfmpeg} = useFfmpeg();
 
   const load = useCallback(async () => {
     const ffmpeg = new FFmpeg();
-    ffmpeg.on("log", ({message}) => {
-      console.log(message);
-    });
+    if (enableLog) {
+      ffmpeg.on("log", ({message}) => {
+        console.log(message);
+      });
+    }
 
     const baseURL = enableMultiThreading
       ? "https://unpkg.com/@ffmpeg/core-mt@0.12.9/dist/umd"
@@ -44,7 +52,7 @@ export default function FfmpegLoader({enableMultiThreading}: {enableMultiThreadi
         : undefined,
     });
     setFfmpeg(ffmpeg);
-  }, [enableMultiThreading, setFfmpeg]);
+  }, [enableLog, enableMultiThreading, setFfmpeg]);
 
   useEffect(() => {
     load();

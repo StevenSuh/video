@@ -4,11 +4,11 @@ import {cn, formatTimestamp, setAccurateIntervalInSecs} from "@/lib/utils";
 import classes from "./video-editor.module.css";
 import {Button} from "@/components/ui/button";
 import {Headphones, InspectionPanel, LoaderCircle, Pause, Play} from "lucide-react";
-import {assertVideoLoaded, getTotalDuration, useVideos} from "../video/store";
+import {getTotalDuration, useVideos} from "../video/store";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {VideoRange} from "./video-range/video-range";
 import {useFfmpeg} from "@/app/components/ffmpeg/ffmpeg";
-import {fetchFile} from "@ffmpeg/util";
+import {ffmpegOutputPresets, getVideoMetadatas, processInputVideo} from "@/lib/ffmpeg";
 
 export function VideoEditor() {
   const {ffmpeg} = useFfmpeg();
@@ -54,19 +54,6 @@ export function VideoEditor() {
       return;
     }
     const inputs: string[] = [];
-    // https://github.com/ffmpegwasm/ffmpeg.wasm/issues/530#issuecomment-2191708567
-    const threads = ["-threads", "4"];
-
-    // chatgpt this shit
-    const inputPresets = [
-      ...["-c:v", "libx264"],
-      ...["-crf", "23"],
-      ...["-preset", "veryfast"],
-      ...["-c:a", "aac"],
-      ...["-f", "mpegts"],
-      ...threads,
-    ];
-    const outputPresets = [...["-c", "copy"], ...["-muxdelay", "0"], ...["-muxpreload", "0"], ...threads];
 
     // TODO: add resolution selects
     const width = 1080;
@@ -75,42 +62,31 @@ export function VideoEditor() {
     const now = Date.now();
     setProcessing(true);
 
+    // cleanup output if there is any
     try {
       await ffmpeg.deleteFile("output.mp4");
     } catch {}
 
+    const {targetVideoMetadata, videoMetadatasByUrl} = await getVideoMetadatas(ffmpeg, videos);
     await Promise.all(
-      videos.map(async (video, i) => {
-        assertVideoLoaded(video);
-        const fileName = `input-${i}`;
-        await ffmpeg.writeFile(fileName, await fetchFile(video.url));
-
-        // chatgpt this shit
-        await ffmpeg.exec([
-          ...["-ss", `${video.start}`],
-          ...["-to", `${video.end}`],
-          ...["-i", fileName],
-          ...[
-            "-vf",
-            [
-              `scale=${width}:${height}:force_original_aspect_ratio=1`,
-              `pad=${width}:${height}:-1:-1:black`,
-              "fps=30",
-            ].join(","),
-          ],
-          ...inputPresets,
-          ...["-ar", "48000"],
-          fileName + ".ts",
-        ]);
-        await ffmpeg.deleteFile(fileName);
-      }),
+      videos.map((video, i) =>
+        processInputVideo({
+          ffmpeg,
+          video,
+          fileName: `input-${i}`,
+          videoMetadata: videoMetadatasByUrl[video.url],
+          targetVideoMetadata,
+          width,
+          height,
+        }),
+      ),
     );
 
     await ffmpeg.writeFile("concat.txt", videos.map((_, i) => `file input-${i}.ts`).join("\n"));
     inputs.push("-f", "concat", "-safe", "0", "-i", "concat.txt");
 
     const outputName = "output.mp4";
-    inputs.push(...outputPresets);
+    inputs.push(...ffmpegOutputPresets);
     inputs.push(outputName);
 
     await ffmpeg.exec(inputs);

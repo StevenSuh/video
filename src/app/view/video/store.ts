@@ -1,6 +1,11 @@
 import {create} from "zustand";
 import {immer} from "zustand/middleware/immer";
 
+export interface VideoMetadata {
+  frameRate: number;
+  audioSamplingFrequency: number;
+}
+
 interface VideoDurationLoadedInput {
   duration: number;
   actualWidth: number;
