@@ -48,3 +48,14 @@ export function assertValue<T>(value: T | null | undefined): asserts value is T 
     throw new Error(`Value (${value}) is undefined or null`);
   }
 }
+
+export function assertSwitchCase(value: never): never {
+  throw new Error(`Unhandled switch case: ${value}`);
+}
+
+export function logIfDev(...messages: unknown[]) {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+  console.log(...messages);
+}

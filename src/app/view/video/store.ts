@@ -2,8 +2,14 @@ import {create} from "zustand";
 import {immer} from "zustand/middleware/immer";
 
 export interface VideoMetadata {
+  videoCodec: string;
+  videoFormat: string;
   frameRate: number;
+
+  audioCodec: string;
   audioSamplingFrequency: number;
+
+  rotation: number;
 }
 
 interface VideoDurationLoadedInput {

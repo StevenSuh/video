@@ -1,6 +1,6 @@
 "use client";
 
-import {cn, formatTimestamp, setAccurateIntervalInSecs} from "@/lib/utils";
+import {cn, formatTimestamp, logIfDev, setAccurateIntervalInSecs} from "@/lib/utils";
 import classes from "./video-editor.module.css";
 import {Button} from "@/components/ui/button";
 import {Headphones, InspectionPanel, LoaderCircle, Pause, Play} from "lucide-react";
@@ -80,7 +80,7 @@ export function VideoEditor() {
     await cleanupVideos(ffmpeg, videos);
 
     const later = Date.now();
-    console.log(`Took ${(later - now) / 1000} seconds`);
+    logIfDev(`Took ${(later - now) / 1000} seconds`);
     setProcessing(false);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
