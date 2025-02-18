@@ -31,7 +31,7 @@ export default function RootLayout({
           {children}
         </ThemeProvider>
 
-        <FfmpegLoader enableLog={true} enableMultiThreading={true} />
+        <FfmpegLoader enableLog={false} enableMultiThreading={true} />
       </body>
     </html>
   );

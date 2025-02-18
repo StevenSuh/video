@@ -74,15 +74,27 @@ export async function processInputVideos(
       const fileName = getInputFileName(video, i);
       const videoMetadata = videoMetadatasByUrl[video.url];
 
+      let reason = "";
       const shouldReencode =
         video.actualWidth !== width ||
         video.actualHeight !== height ||
         Object.keys(targetVideoMetadata).some(key => {
           const typedKey = key as keyof VideoMetadata;
+          if (targetVideoMetadata[typedKey] !== videoMetadata[typedKey]) {
+            reason = `${typedKey} - target (${targetVideoMetadata[typedKey]}) / actual (${videoMetadata[typedKey]})`;
+          }
           return targetVideoMetadata[typedKey] !== videoMetadata[typedKey];
         });
 
-      console.log(video, shouldReencode, targetVideoMetadata);
+      if (video.actualWidth !== width) {
+        reason = `width - target (${width}) / actual (${video.actualWidth})`;
+      }
+      if (video.actualHeight !== height) {
+        reason = `height - target (${height}) / actual (${video.actualHeight})`;
+      }
+
+      console.log(video.name, shouldReencode, reason);
+      const now = Date.now();
 
       if (!shouldReencode) {
         await ffmpeg.exec([
@@ -93,26 +105,28 @@ export async function processInputVideos(
           ...ffmpegInputTs,
           fileName + inputFileExtension,
         ]);
-        return;
+      } else {
+        // chatgpt this shit
+        await ffmpeg.exec([
+          ...["-ss", `${video.start}`],
+          ...["-to", `${video.end}`],
+          ...["-i", fileName],
+          ...[
+            "-vf",
+            [
+              `scale=${width}:${height}:force_original_aspect_ratio=1`,
+              `pad=${width}:${height}:-1:-1:black`,
+              `fps=${targetVideoMetadata.frameRate}`,
+            ].join(","),
+          ],
+          ...ffmpegInputPresets,
+          ...["-ar", `${targetVideoMetadata.audioSamplingFrequency}`],
+          fileName + inputFileExtension,
+        ]);
       }
 
-      // chatgpt this shit
-      await ffmpeg.exec([
-        ...["-ss", `${video.start}`],
-        ...["-to", `${video.end}`],
-        ...["-i", fileName],
-        ...[
-          "-vf",
-          [
-            `scale=${width}:${height}:force_original_aspect_ratio=1`,
-            `pad=${width}:${height}:-1:-1:black`,
-            `fps=${targetVideoMetadata.frameRate}`,
-          ].join(","),
-        ],
-        ...ffmpegInputPresets,
-        ...["-ar", "48000"],
-        fileName + inputFileExtension,
-      ]);
+      const later = Date.now();
+      console.log(`Took ${(later - now) / 1000} seconds`);
 
       await ffmpeg.deleteFile(fileName);
     }),
@@ -144,36 +158,40 @@ export async function cleanupVideos(ffmpeg: FFmpeg, videos: Video[]) {
 }
 
 // ffprobe
-const ffprobeOutput = "ffprobe.txt";
-const commonFfprobeFlags = [
-  ...["-v", "error"],
-  ...["-of", "default=noprint_wrappers=1:nokey=1"],
-  ...["-o", ffprobeOutput],
-];
+const ffprobeOutputSuffix = "-ffprobe.txt";
+const commonFfprobeFlags = [...["-of", "default=noprint_wrappers=1:nokey=1"]];
 
 const ffprobeVideo = [...["-select_streams", "v"], ...["-show_entries", "stream=r_frame_rate"], ...commonFfprobeFlags];
 
 const ffprobeAudio = [...["-select_streams", "a"], ...["-show_entries", "stream=sample_rate"], ...commonFfprobeFlags];
 
-function getFfprobeVideoArgs(input: string): string[] {
-  return [...["-i", input], ...ffprobeVideo];
+function getFfprobeVideoArgs(input: string, output: string): string[] {
+  return [...ffprobeVideo, input, "-o", output];
 }
 
-function getFfprobeAudioArgs(input: string): string[] {
-  return [...["-i", input], ...ffprobeAudio];
+function getFfprobeAudioArgs(input: string, output: string): string[] {
+  return [...ffprobeAudio, input, "-o", output];
 }
 
 export async function getVideoFrameRate(ffmpeg: FFmpeg, input: string): Promise<number> {
-  await ffmpeg.ffprobe(getFfprobeVideoArgs(input));
-  const data = (await ffmpeg.readFile(ffprobeOutput)) as Uint8Array;
+  const outputTxt = `${input}-${ffprobeOutputSuffix}`;
+
+  await ffmpeg.ffprobe(getFfprobeVideoArgs(input, outputTxt));
+  const data = (await ffmpeg.readFile(outputTxt)) as Uint8Array;
   const dataStr = new TextDecoder().decode(data);
   const [str1, str2] = dataStr.split("/");
+
+  await ffmpeg.deleteFile(outputTxt);
   return Math.round(parseInt(str1, 10) / parseInt(str2, 10));
 }
 
 export async function getAudioSamplingFrequency(ffmpeg: FFmpeg, input: string): Promise<number> {
-  await ffmpeg.ffprobe(getFfprobeAudioArgs(input));
-  const data = (await ffmpeg.readFile(ffprobeOutput)) as Uint8Array;
+  const outputTxt = `${input}-${ffprobeOutputSuffix}`;
+
+  await ffmpeg.ffprobe(getFfprobeAudioArgs(input, outputTxt));
+  const data = (await ffmpeg.readFile(outputTxt)) as Uint8Array;
   const dataStr = new TextDecoder().decode(data);
+
+  await ffmpeg.deleteFile(outputTxt);
   return parseInt(dataStr, 10);
 }
