@@ -1,5 +1,6 @@
 import {create} from "zustand";
 import {immer} from "zustand/middleware/immer";
+import {getTotalDuration} from "./util";
 
 export interface VideoMetadata {
   videoCodec: string;
@@ -38,12 +39,6 @@ export function assertVideoLoaded(video: Video): asserts video is VideoLoaded {
   if (!video.loaded) {
     throw new Error(`Video (${video.name}) is not loaded`);
   }
-}
-
-export function getTotalDuration(videos: Video[]): number {
-  return videos.reduce((accum, v) => {
-    return accum + (v.loaded ? v.end - v.start : 0);
-  }, 0);
 }
 
 interface VideoStore {

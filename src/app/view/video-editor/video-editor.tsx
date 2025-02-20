@@ -4,7 +4,7 @@ import {cn, formatTimestamp, logIfDev, setAccurateIntervalInSecs} from "@/lib/ut
 import classes from "./video-editor.module.css";
 import {Button} from "@/components/ui/button";
 import {Headphones, InspectionPanel, LoaderCircle, Pause, Play} from "lucide-react";
-import {getTotalDuration, useVideos} from "../video/store";
+import {useVideos} from "../video/store";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {VideoRange} from "./video-range/video-range";
 import {useFfmpeg} from "@/app/components/ffmpeg/ffmpeg";
@@ -15,6 +15,7 @@ import {
   initializeForProcessing,
   processInputVideos,
 } from "@/lib/ffmpeg";
+import {getTotalDuration} from "../video/util";
 
 export function VideoEditor() {
   const {ffmpeg} = useFfmpeg();

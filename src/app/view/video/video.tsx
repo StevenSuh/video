@@ -6,6 +6,7 @@ import {Upload} from "lucide-react";
 import {assertVideoLoaded, useVideos, Video} from "./store";
 import {AddVideoButton} from "./add-video-button";
 import {createRef, RefObject, useCallback, useEffect, useMemo, useState} from "react";
+import {getCurrentVideoIdx} from "./util";
 
 type VideoRefs = {[videoUrl: string]: RefObject<HTMLVideoElement | null>};
 
@@ -14,22 +15,7 @@ export function VideoPlayer() {
   const [videoRefs, setVideoRefs] = useState<VideoRefs>({});
 
   // calculates which video to show
-  const currVideoIdx = useMemo(() => {
-    let accumTime = 0;
-    for (let i = 0; i < videos.length; i++) {
-      const video = videos[i];
-      // this means video was just added and player is at 0
-      if (!video.loaded) {
-        return i;
-      }
-
-      accumTime += video.end - video.start;
-      if (accumTime > currentTime) {
-        return i;
-      }
-    }
-    return videos.length - 1;
-  }, [currentTime, videos]);
+  const currVideoIdx = useMemo(() => getCurrentVideoIdx(currentTime, videos), [currentTime, videos]);
 
   // mapping video elements to refs map
   useEffect(() => {

@@ -1,7 +1,8 @@
 import {cn} from "@/lib/utils";
 import classes from "./video-range.module.css";
 import {Plus} from "lucide-react";
-import {getTotalDuration, useVideos} from "../../video/store";
+import {useVideos} from "../../video/store";
+import {getCurrentVideoIdx, getTotalDuration} from "../../video/util";
 import {AddVideoButton} from "../../video/add-video-button";
 import {
   CSSProperties,
@@ -16,6 +17,7 @@ import {
 export function VideoRange() {
   const {currentTime, videos, playing, pause, addCurrentTime} = useVideos();
 
+  const currVideoIdx = useMemo(() => getCurrentVideoIdx(currentTime, videos), [currentTime, videos]);
   const totalDuration = useMemo(() => getTotalDuration(videos), [videos]);
 
   const projectRangeContainerRef = useRef<HTMLDivElement>(null);
@@ -159,7 +161,10 @@ export function VideoRange() {
         <Plus size={32} />
       </AddVideoButton>
 
-      <div className="relative flex items-center flex-1 overflow-hidden" onPointerDown={onPointerDown}>
+      <div
+        className="relative flex items-center flex-1 overflow-hidden cursor-pointer select-none"
+        onPointerDown={onPointerDown}
+      >
         <div className="relative w-full flex overflow-hidden">
           <div
             className={cn(classes.videoRangeContainer, "relative flex")}
@@ -173,14 +178,29 @@ export function VideoRange() {
               } as CSSProperties
             }
           >
-            {videos.map(v => {
+            {videos.map((v, i) => {
               const currentVideoDuration = v.loaded ? v.end - v.start : 0;
               const width = (projectRangeWidth / zoomRangeToUse) * currentVideoDuration - 6; // margin
               return (
-                <div className="rounded-md overflow-hidden mx-[3px] cursor-pointer" key={v.url} style={{width}}>
+                <div
+                  className={cn(
+                    classes.video,
+                    "rounded-md overflow-hidden mx-[3px] cursor-pointer relative",
+                    "hover:opacity-100",
+                    {
+                      "opacity-50": currVideoIdx !== i,
+                    },
+                  )}
+                  key={v.url}
+                  style={{width}}
+                >
                   <video className="h-16 w-full object-cover" preload="metadata" controls={false}>
                     <source src={`${v.url}#t=0`} />
                   </video>
+
+                  <div className={cn(classes.videoBorder, "border-foreground")} />
+                  <div className={cn(classes.videoLeftBtn, "bg-foreground")} />
+                  <div className={cn(classes.videoRightBtn, "bg-foreground")} />
                 </div>
               );
             })}
@@ -190,9 +210,9 @@ export function VideoRange() {
         {videos.length ? (
           <div
             className={cn(
-              "absolute w-1.5 bg-foreground rounded-full h-20",
+              "absolute w-[5px] bg-foreground rounded-full h-20",
               "left-1/2 -translate-x-1/2",
-              "cursor-pointer",
+              "pointer-events-none",
             )}
           />
         ) : null}

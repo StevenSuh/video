@@ -18,3 +18,42 @@
     transform: translateX(var(--end-range));
   }
 }
+
+.videoBorder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+
+  border-width: 3px;
+  border-style: solid;
+  border-radius: 6px;
+  opacity: 0;
+}
+
+.videoLeftBtn,
+.videoRightBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 50%;
+  width: 10px;
+
+  border-radius: 4px;
+  opacity: 0;
+}
+
+.videoLeftBtn {
+  left: 0;
+}
+
+.videoRightBtn {
+  right: 0;
+}
+
+.video:hover > .videoBorder,
+.video:hover > .videoLeftBtn,
+.video:hover > .videoRightBtn {
+  opacity: 1;
+}
